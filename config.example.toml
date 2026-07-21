@@ -1,0 +1,14 @@
+# Exemple de configuration fraîcheur.
+# À copier vers ~/.config/fraicheur/config.toml (ou pointer $FRAICHEUR_CONFIG dessus).
+#
+# Chaque [[workspace]] est une racine ; chaque sous-répertoire devient un projet
+# (s'il contient .git/ ou un README.md / CLAUDE.md / AGENT.md).
+
+[[workspace]]
+name  = "internal"
+root  = "~/workspace/internal"
+depth = 1
+
+[[workspace]]
+name = "client-1"
+root = "~/workspace/client-1"
