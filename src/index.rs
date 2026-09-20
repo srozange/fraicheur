@@ -86,7 +86,7 @@ pub fn index(config: &Config) -> Vec<Project> {
         // depth 1 = enfants directs ; WalkDir min_depth/max_depth = ws.depth.
         let depth = ws.depth.max(1);
         for entry in WalkDir::new(&root)
-            .min_depth(depth)
+            .min_depth(1)
             .max_depth(depth)
             .into_iter()
             .filter_map(|e| e.ok())
