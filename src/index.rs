@@ -75,7 +75,13 @@ fn build_project(name: String, workspace: String, dir: PathBuf) -> Project {
 }
 
 /// Parcourt tous les workspaces et renvoie les projets, triés par (workspace, nom).
+///
+/// Règle d'inclusion : si au moins un répertoire enfant d'un parent qualifie
+/// (`is_project`), alors *tous* les répertoires enfants directs de ce parent
+/// sont inclus — peu importe qu'ils aient eux-mêmes un marqueur.
 pub fn index(config: &Config) -> Vec<Project> {
+    use std::collections::{HashMap, HashSet};
+
     let mut projects = Vec::new();
 
     for ws in &config.workspaces {
@@ -83,23 +89,47 @@ pub fn index(config: &Config) -> Vec<Project> {
         if !root.is_dir() {
             continue;
         }
-        // depth 1 = enfants directs ; WalkDir min_depth/max_depth = ws.depth.
         let depth = ws.depth.max(1);
+
+        // Regrouper tous les dossiers par leur parent direct.
+        let mut by_parent: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
         for entry in WalkDir::new(&root)
             .min_depth(1)
             .max_depth(depth)
             .into_iter()
             .filter_map(|e| e.ok())
         {
-            let dir = entry.path();
-            if !dir.is_dir() || !is_project(dir) {
+            let path = entry.path().to_path_buf();
+            if !path.is_dir() {
                 continue;
             }
+            let is_hidden = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.starts_with('.'))
+                .unwrap_or(false);
+            if is_hidden {
+                continue;
+            }
+            if let Some(parent) = path.parent() {
+                by_parent.entry(parent.to_path_buf()).or_default().push(path);
+            }
+        }
+
+        // Si au moins un enfant qualifie, inclure tous les enfants du même parent.
+        let mut to_include: HashSet<PathBuf> = HashSet::new();
+        for children in by_parent.values() {
+            if children.iter().any(|d| is_project(d)) {
+                to_include.extend(children.iter().cloned());
+            }
+        }
+
+        for dir in to_include {
             let name = dir
                 .file_name()
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_default();
-            projects.push(build_project(name, ws.name.clone(), dir.to_path_buf()));
+            projects.push(build_project(name, ws.name.clone(), dir));
         }
     }
 
