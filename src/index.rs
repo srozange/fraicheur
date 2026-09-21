@@ -92,23 +92,22 @@ pub fn index(config: &Config) -> Vec<Project> {
         let depth = ws.depth.max(1);
 
         // Regrouper tous les dossiers par leur parent direct.
+        // filter_entry élagage : WalkDir ne descend pas dans les dossiers cachés.
         let mut by_parent: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
         for entry in WalkDir::new(&root)
             .min_depth(1)
             .max_depth(depth)
             .into_iter()
+            .filter_entry(|e| {
+                e.file_name()
+                    .to_str()
+                    .map(|n| !n.starts_with('.'))
+                    .unwrap_or(true)
+            })
             .filter_map(|e| e.ok())
         {
             let path = entry.path().to_path_buf();
             if !path.is_dir() {
-                continue;
-            }
-            let is_hidden = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|n| n.starts_with('.'))
-                .unwrap_or(false);
-            if is_hidden {
                 continue;
             }
             if let Some(parent) = path.parent() {
